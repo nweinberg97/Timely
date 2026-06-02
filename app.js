@@ -414,7 +414,6 @@ function handleDrop(e) {
     const cardId = e.dataTransfer.getData('text/plain') || draggedCardId;
     if (!cardId) return;
 
-    // Trash Routing Flow Engine
     if (zone.id === 'trash-zone') {
         state.cards = state.cards.filter(c => c.id !== cardId);
         saveDataToStorage();
@@ -422,7 +421,6 @@ function handleDrop(e) {
         return;
     }
 
-    // Capture Zone Target Structural Directives
     const zoneType = zone.dataset.zoneType;
     const zoneId = zone.dataset.zoneId || 'universal';
 
@@ -430,11 +428,23 @@ function handleDrop(e) {
     if (card) {
         card.targetZone = zoneType;
         card.targetIndex = zoneId;
-        card.position = Date.now(); // Put at end of list sequentially
+        card.position = Date.now();
 
-        // CRITICAL TRANSFORMATION RULE INTERCEPTOR
+        // 🟢 TWO-WAY CONVERSION FOR ALL BOARD TYPES
         if (zoneType === 'universal') {
-            card.type = 'Universal Card'; // Permanent Conversion Ruleset applied
+            card.type = 'Universal Card';
+        } else if (zoneType === 'daily') {
+            card.type = 'Daily Card';
+        } else if (zoneType === 'weekly') {
+            card.type = 'Weekly Card';
+        } else if (zoneType === 'monthly') {
+            card.type = 'Monthly Card';
+        } else if (zoneType === 'reminders') {
+            card.type = 'Reminder Card';
+        } else if (zoneType === 'goal') {
+            card.type = 'Goal Task Card';
+        } else if (zoneType === 'project') {
+            card.type = 'Project Task Card';
         }
 
         saveDataToStorage();
