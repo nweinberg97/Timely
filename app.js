@@ -60,11 +60,12 @@ function registerGlobalEventListeners() {
         });
     });
 
-    // Inboxes and Utility Fast-Adds
+// Inboxes and Utility Fast-Adds
     document.getElementById('btn-add-universal').addEventListener('click', () => {
-        createNewCard({ type: 'Universal Card', targetZone: 'universal', targetIndex: '0' });
+        // FIX: Changed targetIndex from '0' to 'universal' to match filtering criteria
+        createNewCard({ type: 'Universal Card', targetZone: 'universal', targetIndex: 'universal' });
     });
-
+    
     // Native Drag and Drop Management Hooks
     setupDragAndDropFramework();
 
@@ -137,7 +138,12 @@ function renderDailyView(target) {
 }
 
 function renderWeeklyView(target) {
-    let html = `<div class="pane-header"><h2>Weekly Routine Horizon</h2></div>`;
+    // FIX: Added the '+ Add Routine' action button to the layout header
+    let html = `
+        <div class="pane-header">
+            <h2>Weekly Routine Horizon</h2>
+            <button class="add-card-btn" onclick="createNewCardFromUI('Weekly Card', 'Monday-Morning')">+ Add Routine</button>
+        </div>`;
     html += `<div class="weekly-layout">`;
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const sections = ["Morning", "Noon", "Afternoon", "Evening", "Night"];
@@ -161,8 +167,15 @@ function renderWeeklyView(target) {
     target.innerHTML = html;
 }
 
+
+
 function renderMonthlyView(target) {
-    let html = `<div class="pane-header"><h2>Monthly Calendar Matrix</h2></div>`;
+    // FIX: Added the '+ Add Event' action button to the layout header
+    let html = `
+        <div class="pane-header">
+            <h2>Monthly Calendar Matrix</h2>
+            <button class="add-card-btn" onclick="createNewCardFromUI('Monthly Card', 'day-1')">+ Add Event</button>
+        </div>`;
     html += `<div class="monthly-layout">`;
     const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     weekDays.forEach(wd => html += `<div class="month-day-head">${wd}</div>`);
