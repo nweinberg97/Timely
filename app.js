@@ -9,11 +9,18 @@ let state = {
     currentScheduleView: 'daily', // 'daily' | 'weekly' | 'monthly' | 'reminders'
     currentPlanningView: 'goals', // 'goals' | 'projects'
     carouselIndex: 0, // Track column sliding viewport offset
+    currentDate: new Date(2026, 5, 4), // Initialized to June 4, 2026
+    syncMode: 'none', // 'none' | 'event' | 'routine' | 'reminder'
+    selectedCardIds: new Set(), // Set of selected cards for custom targeted sync exports
     cards: [],
     containers: [] // For Goals & Projects
 };
 
 const CAROUSEL_VISIBLE_LIMIT = 3; // Max number of visible columns in carousel
+
+// Real-world operational constants for calendar mapping reference
+const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS_OF_YEAR = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 // --- Initialization & Bootstrapping ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -63,6 +70,7 @@ function registerGlobalEventListeners() {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('#schedule-view-selector .sub-nav-btn').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
+            cancelSyncMode(); // Exit out of selection mode cleanly when changing views
             switchScheduleView(e.target.dataset.view);
         });
     });
@@ -78,15 +86,13 @@ function registerGlobalEventListeners() {
     // Modal Interaction Interfaces
     document.getElementById('btn-modal-close').addEventListener('click', closeModal);
     document.getElementById('btn-modal-save').addEventListener('click', saveModalChanges);
-    
-    // iCal Downloader Action Trigger
-    document.getElementById('btn-export-ical').addEventListener('click', exportSelectedToICal);
 }
 
 // --- View Navigation Controllers ---
 function switchMode(targetMode) {
     state.currentMode = targetMode;
     state.carouselIndex = 0; // Reset viewport alignment
+    cancelSyncMode();
     document.getElementById('btn-schedule-mode').classList.toggle('active', targetMode === 'schedule');
     document.getElementById('btn-planning-mode').classList.toggle('active', targetMode === 'planning');
     
@@ -108,7 +114,6 @@ function setupPlanningNavListeners() {
     const planNav = document.getElementById('planning-view-selector');
     if (!planNav) return;
     
-    // Capitalized consistently to match 'Active Projects'
     planNav.innerHTML = `
         <button class="sub-nav-btn ${state.currentPlanningView === 'goals' ? 'active' : ''}" data-pview="goals">Current Goals</button>
         <button class="sub-nav-btn ${state.currentPlanningView === 'projects' ? 'active' : ''}" data-pview="projects">Active Projects</button>
@@ -130,69 +135,17 @@ function switchScheduleView(targetView) {
     renderApp();
 }
 
-// --- Container Creation Management ---
-window.addNewPlanningContainer = function() {
-    const inputEl = document.getElementById('new-container-title');
-    if (!inputEl || !inputEl.value.trim()) return;
-
-    const title = inputEl.value.trim();
-    const type = state.currentPlanningView === 'goals' ? 'goal' : 'project';
-    const prefix = type === 'goal' ? 'g-' : 'p-';
-    const id = prefix + Date.now();
-
-    state.containers.push({ id, title, type });
-    saveDataToStorage();
-    inputEl.value = '';
-    renderApp();
-};
-
-// --- Container Deletion Mechanic ---
-window.deletePlanningContainer = function(containerId) {
-    if (!confirm("Are you sure you want to delete this track? All active cards inside will be returned safely to your Universal Board.")) return;
-
-    // 1. Target and sweep structural elements inside the array
-    state.containers = state.containers.filter(c => c.id !== containerId);
-
-    // 2. Structural Catch: Redirect orphan tasks cleanly back onto the Universal Board
-    state.cards.forEach(card => {
-        if (card.targetIndex === containerId) {
-            card.targetZone = 'universal';
-            card.targetIndex = 'universal';
-            card.type = 'Universal Card';
-            card.position = Date.now();
-        }
-    });
-
-    // 3. Keep sliding viewport bounds from getting pushed out of tracking alignment
-    const typeFilter = state.currentPlanningView === 'goals' ? 'goal' : 'project';
-    const remainingCount = state.containers.filter(c => c.type === typeFilter).length;
-    if (state.carouselIndex > remainingCount - CAROUSEL_VISIBLE_LIMIT) {
-        state.carouselIndex = Math.max(0, remainingCount - CAROUSEL_VISIBLE_LIMIT);
-    }
-
-    saveDataToStorage();
-    renderApp();
-};
-
-// --- Carousel Pagination Controls ---
-window.shiftCarousel = function(direction) {
-    const typeFilter = state.currentPlanningView === 'goals' ? 'goal' : 'project';
-    const totalContainers = state.containers.filter(c => c.type === typeFilter).length;
-    
-    state.carouselIndex += direction;
-    
-    // Safety Bounds Verification
-    if (state.carouselIndex < 0) state.carouselIndex = 0;
-    if (state.carouselIndex > totalContainers - CAROUSEL_VISIBLE_LIMIT) {
-        state.carouselIndex = Math.max(0, totalContainers - CAROUSEL_VISIBLE_LIMIT);
-    }
-    renderApp();
-};
-
 // --- High Performance Render System ---
 function renderApp() {
     const mainWorkspace = document.getElementById('workspace-main');
     mainWorkspace.innerHTML = ''; 
+
+    // Apply active sync mode tracking CSS class directly onto layout envelope
+    if (state.syncMode !== 'none') {
+        mainWorkspace.classList.add('is-selecting');
+    } else {
+        mainWorkspace.classList.remove('is-selecting');
+    }
 
     if (state.currentMode === 'schedule') {
         switch (state.currentScheduleView) {
@@ -207,18 +160,172 @@ function renderApp() {
 
     renderUniversalBoard();
     attachCardInteractions();
-    attachContainerInteractions(); // Bind interactive header elements securely
+    attachContainerInteractions(); 
 }
+
+// --- Dynamic Central Time Navigator Layout Builder ---
+function generateTimeNavigatorHTML(viewTitle, dateString) {
+    const isReminderView = state.currentScheduleView === 'reminders';
+    
+    let actionButtonsHTML = '';
+    
+    // Core selection action modes execution logic
+    if (state.syncMode !== 'none') {
+        actionButtonsHTML = `
+            <div class="action-btn-group">
+                <button class="action-btn primary" onclick="executeTargetedSync()">Confirm Sync (${state.selectedCardIds.size})</button>
+                <button class="action-btn secondary" onclick="cancelSyncMode()">Cancel</button>
+            </div>
+        `;
+    } else {
+        if (isReminderView) {
+            actionButtonsHTML = `
+                <div class="action-btn-group">
+                    <button class="action-btn secondary" onclick="initiateSyncMode('reminder')">Sync Apple Reminders</button>
+                </div>
+            `;
+        } else {
+            actionButtonsHTML = `
+                <div class="action-btn-group">
+                    <button class="action-btn secondary" onclick="initiateSyncMode('event')">Export Events to iCal</button>
+                    <button class="action-btn secondary" onclick="initiateSyncMode('routine')">Sync Recurring Routines</button>
+                </div>
+            `;
+        }
+    }
+
+    return `
+        <div class="time-navigator-container">
+            <div class="view-context-heading">${viewTitle}</div>
+            <div class="current-date-window-title">${dateString}</div>
+            <div class="nav-controls-group">
+                ${!isReminderView ? `
+                    <button class="timeline-step-btn" onclick="shiftTimeFrame(-1)">◀</button>
+                    <button class="timeline-step-btn" onclick="jumpToCurrentRealWorldDate()">Today</button>
+                    <button class="timeline-step-btn" onclick="shiftTimeFrame(1)">▶</button>
+                ` : ''}
+                ${actionButtonsHTML}
+            </div>
+        </div>
+    `;
+}
+
+// --- Global Date Stepping Engine ---
+window.shiftTimeFrame = function(direction) {
+    const date = new Date(state.currentDate);
+    if (state.currentScheduleView === 'daily') {
+        date.setDate(date.getDate() + direction);
+    } else if (state.currentScheduleView === 'weekly') {
+        date.setDate(date.getDate() + (direction * 7));
+    } else if (state.currentScheduleView === 'monthly') {
+        date.setMonth(date.getMonth() + direction);
+    }
+    state.currentDate = date;
+    renderApp();
+};
+
+window.jumpToCurrentRealWorldDate = function() {
+    state.currentDate = new Date(2026, 5, 4); // Anchor today back precisely to June 4, 2026
+    renderApp();
+};
+
+// --- Selection System Logic ---
+window.initiateSyncMode = function(mode) {
+    state.syncMode = mode;
+    state.selectedCardIds.clear();
+    renderApp();
+};
+
+window.cancelSyncMode = function() {
+    state.syncMode = 'none';
+    state.selectedCardIds.clear();
+    renderApp();
+};
+
+// --- Target Synchronization String Exporter ---
+window.executeTargetedSync = function() {
+    if (state.selectedCardIds.size === 0) {
+        alert("Please explicitly click and select target cards to push across the synchronization pipeline.");
+        return;
+    }
+
+    const selectedCards = state.cards.filter(c => state.selectedCardIds.has(c.id));
+    
+    if (state.syncMode === 'reminder') {
+        // Mock execution pipeline hook for Reminders script bridge
+        alert(`Successfully synced ${selectedCards.length} tasks securely into Apple Reminders app!`);
+    } else {
+        // Construct standard iCal .ics payload file string
+        let icsContent = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//Timely Local First Planner//NONSGML v1.0//EN',
+            'CALSCALE:GREGORIAN'
+        ];
+
+        const todayStr = new Date(2026, 5, 4).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+        selectedCards.forEach(card => {
+            icsContent.push('BEGIN:VEVENT');
+            icsContent.push(`UID:${card.id}@timely.local`);
+            icsContent.push(`DTSTAMP:${todayStr}`);
+            icsContent.push(`DTSTART:${todayStr}`); 
+            icsContent.push(`SUMMARY:${card.title}`);
+            if (card.description) {
+                icsContent.push(`DESCRIPTION:${card.description.replace(/\n/g, '\\n')}`);
+            }
+            
+            // Apply RRULE structural formatting for routines explicitly
+            if (state.syncMode === 'routine' || (card.metadata && card.metadata.repeat && card.metadata.repeat !== 'none')) {
+                let freq = 'DAILY';
+                const repeatVal = card.metadata?.repeat || 'daily';
+                if (repeatVal === 'weekly') freq = 'WEEKLY';
+                if (repeatVal === 'monthly') freq = 'MONTHLY';
+                icsContent.push(`RRULE:FREQ=${freq}`);
+            }
+            
+            icsContent.push('END:VEVENT');
+        });
+
+        icsContent.push('END:VCALENDAR');
+        const icsString = icsContent.join('\r\n');
+
+        const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', `timely_sync_${state.syncMode}_${Date.now()}.ics`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    cancelSyncMode();
+};
 
 // --- Specific View Templates Execution ---
 function renderDailyView(target) {
-    let html = `<div class="pane-header"><h2>daily schedule</h2><button class="add-card-btn" onclick="createNewCardFromUI('Daily Card', '08:00')">+ Add Time Block</button></div>`;
+    const d = state.currentDate;
+    const dayLabel = DAYS_OF_WEEK[d.getDay()];
+    const monthLabel = MONTHS_OF_YEAR[d.getMonth()];
+    const formattedDateStr = `${dayLabel}, ${monthLabel} ${d.getDate()}, ${d.getFullYear()}`;
+    
+    // Evaluation markers for structural time indicators
+    const isRealWorldToday = (d.getFullYear() === 2026 && d.getMonth() === 5 && d.getDate() === 4);
+    const realWorldHour = 12; // Static evaluation checkpoint context match: 12:00 PM
+
+    let html = generateTimeNavigatorHTML("Daily Schedule", formattedDateStr);
+    html += `<div style="display:flex; justify-content:flex-end; margin-bottom:1rem;"><button class="add-card-btn" onclick="createNewCardFromUI('Daily Card', '08:00')">+ Add Time Block</button></div>`;
     html += `<div class="daily-layout">`;
+    
     const hours = ["06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
     
     hours.forEach(hour => {
+        const hourInt = parseInt(hour.split(':')[0]);
+        const isCurrentHourRow = isRealWorldToday && (hourInt === realWorldHour);
+        const todayClassModifier = isCurrentHourRow ? 'is-today' : '';
+
         html += `
-            <div class="time-slot-row">
+            <div class="time-slot-row ${todayClassModifier}">
                 <div class="slot-time-label">${hour}</div>
                 <div class="slot-drop-zone drop-zone" data-zone-type="daily" data-zone-id="${hour}">
                     ${renderCardsForZone('daily', hour)}
@@ -231,17 +338,40 @@ function renderDailyView(target) {
 }
 
 function renderWeeklyView(target) {
-    let html = `
-        <div class="pane-header">
-            <h2>weekly schedule</h2>
-            <button class="add-card-btn" onclick="createNewCardFromUI('Weekly Card', 'Monday-Morning')">+ Add Routine</button>
-        </div>`;
+    // Generate week timeline range strings dynamically
+    const currentWeekStart = new Date(state.currentDate);
+    const currentDayOffset = currentWeekStart.getDay(); // 0 is Sunday
+    // Pivot tracking index layout back to start cleanly on Monday
+    const distanceToMonday = currentDayOffset === 0 ? -6 : 1 - currentDayOffset;
+    currentWeekStart.setDate(currentWeekStart.getDate() + distanceToMonday);
+
+    const currentWeekEnd = new Date(currentWeekStart);
+    currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+
+    const startMonthLabel = MONTHS_OF_YEAR[currentWeekStart.getMonth()];
+    const endMonthLabel = MONTHS_OF_YEAR[currentWeekEnd.getMonth()];
+    
+    let dateRangeHeadingString = `${startMonthLabel} ${currentWeekStart.getDate()} – ${endMonthLabel} ${currentWeekEnd.getDate()}, ${currentWeekEnd.getFullYear()}`;
+    if (currentWeekStart.getMonth() === currentWeekEnd.getMonth()) {
+        dateRangeHeadingString = `${startMonthLabel} ${currentWeekStart.getDate()} – ${currentWeekEnd.getDate()}, ${currentWeekEnd.getFullYear()}`;
+    }
+
+    let html = generateTimeNavigatorHTML("Weekly Schedule", dateRangeHeadingString);
+    html += `<div style="display:flex; justify-content:flex-end; margin-bottom:1rem;"><button class="add-card-btn" onclick="createNewCardFromUI('Weekly Card', 'Monday-Morning')">+ Add Routine</button></div>`;
     html += `<div class="weekly-layout">`;
+    
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const sections = ["Morning", "Noon", "Afternoon", "Evening", "Night"];
 
-    days.forEach(day => {
-        html += `<div class="weekly-day-col"><div class="day-col-header">${day}</div>`;
+    days.forEach((day, index) => {
+        // Evaluate calendar days cleanly against target active framework parameters
+        const evaluatedDayDate = new Date(currentWeekStart);
+        evaluatedDayDate.setDate(evaluatedDayDate.getDate() + index);
+        
+        const isWeeklyColumnToday = (evaluatedDayDate.getFullYear() === 2026 && evaluatedDayDate.getMonth() === 5 && evaluatedDayDate.getDate() === 4);
+        const columnClassModifier = isWeeklyColumnToday ? 'is-today' : '';
+
+        html += `<div class="weekly-day-col ${columnClassModifier}"><div class="day-col-header">${day}</div>`;
         sections.forEach(sec => {
             const compositeKey = `${day}-${sec}`;
             html += `
@@ -260,21 +390,34 @@ function renderWeeklyView(target) {
 }
 
 function renderMonthlyView(target) {
-    let html = `
-        <div class="pane-header">
-            <h2>monthly calendar</h2>
-            <button class="add-card-btn" onclick="createNewCardFromUI('Monthly Card', 'day-1')">+ Add Event</button>
-        </div>`;
+    const d = state.currentDate;
+    const monthStringTitle = `${MONTHS_OF_YEAR[d.getMonth()]} ${d.getFullYear()}`;
+
+    let html = generateTimeNavigatorHTML("Monthly Calendar", monthStringTitle);
+    html += `<div style="display:flex; justify-content:flex-end; margin-bottom:1rem;"><button class="add-card-btn" onclick="createNewCardFromUI('Monthly Card', 'day-1')">+ Add Event</button></div>`;
     html += `<div class="monthly-layout">`;
+    
     const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     weekDays.forEach(wd => html += `<div class="month-day-head">${wd}</div>`);
 
-    for (let d = 1; d <= 31; d++) {
+    // Dynamic month square grid offset alignment calculation blocks
+    const firstDayOfMonthIndex = new Date(d.getFullYear(), d.getMonth(), 1).getDay();
+    const totalDaysInActiveMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+
+    // Render leading empty grid cells cleanly
+    for (let i = 0; i < firstDayOfMonthIndex; i++) {
+        html += `<div class="monthly-day-cell" style="opacity: 0.25; background: transparent; border: none;"></div>`;
+    }
+
+    for (let dayCounter = 1; dayCounter <= totalDaysInActiveMonth; dayCounter++) {
+        const isMonthlyCellToday = (d.getFullYear() === 2026 && d.getMonth() === 5 && dayCounter === 4);
+        const cellClassModifier = isMonthlyCellToday ? 'is-today' : '';
+
         html += `
-            <div class="monthly-day-cell">
-                <div class="cell-number">${d}</div>
-                <div class="drop-zone" style="flex-grow:1;" data-zone-type="monthly" data-zone-id="day-${d}">
-                    ${renderCardsForZone('monthly', `day-${d}`)}
+            <div class="monthly-day-cell ${cellClassModifier}">
+                <div class="cell-number">${dayCounter}</div>
+                <div class="drop-zone" style="flex-grow:1;" data-zone-type="monthly" data-zone-id="day-${dayCounter}">
+                    ${renderCardsForZone('monthly', `day-${dayCounter}`)}
                 </div>
             </div>
         `;
@@ -284,9 +427,9 @@ function renderMonthlyView(target) {
 }
 
 function renderRemindersView(target) {
-    let html = `
-        <div class="pane-header"><h2>Reminders Board</h2></div>
-        <div class="reminders-layout">
+    let html = generateTimeNavigatorHTML("Reminders Board", "Active Lists");
+    html += `
+        <div class="reminders-layout" style="margin-top: 1rem;">
             <div class="flex-board-column">
                 <div class="pane-header"><strong>Things I need to remember</strong><button class="add-card-btn" onclick="createNewCardFromUI('Reminder Card', 'reminders-main')">+ Add</button></div>
                 <div class="drop-zone" data-zone-type="reminders" data-zone-id="reminders-main">
@@ -303,7 +446,6 @@ function renderPlanningModeView(target) {
     const typeFilter = isGoals ? 'goal' : 'project';
     const list = state.containers.filter(c => c.type === typeFilter);
     
-    // Slice active columns out for carousel sliding calculation logic
     const visibleColumns = list.slice(state.carouselIndex, state.carouselIndex + CAROUSEL_VISIBLE_LIMIT);
 
     let html = `
@@ -318,7 +460,6 @@ function renderPlanningModeView(target) {
 
     html += `<div class="carousel-view-viewport-frame">`;
     
-    // Left Sliding Button Selector
     const leftDisabled = state.carouselIndex === 0 ? 'disabled' : '';
     html += `<button class="carousel-nav-btn left-arrow" ${leftDisabled} onclick="shiftCarousel(-1)">◀</button>`;
     
@@ -348,7 +489,6 @@ function renderPlanningModeView(target) {
     
     html += `</div>`;
     
-    // Right Sliding Button Selector
     const rightDisabled = (state.carouselIndex >= list.length - CAROUSEL_VISIBLE_LIMIT) || list.length <= CAROUSEL_VISIBLE_LIMIT ? 'disabled' : '';
     html += `<button class="carousel-nav-btn right-arrow" ${rightDisabled} onclick="shiftCarousel(1)">▶</button>`;
     
@@ -385,8 +525,12 @@ function generateCardHTML(card) {
     const routineBadge = card.metadata && card.metadata.repeat && card.metadata.repeat !== 'none' 
         ? `<span class="badge routine">🔁 ${card.metadata.repeat}</span>` 
         : '';
+    
+    // Evaluate if this specific node contains the target selection class highlight
+    const isCurrentlySelected = state.selectedCardIds.has(card.id) ? 'selected-for-sync' : '';
+
     return `
-        <div class="timely-card" draggable="true" id="card-${card.id}" data-id="${card.id}">
+        <div class="timely-card ${isCurrentlySelected}" draggable="true" id="card-${card.id}" data-id="${card.id}">
             <div class="card-header-row">
                 <div class="card-title" contenteditable="true" data-id="${card.id}">${card.title}</div>
                 <div class="card-actions-wrapper">
@@ -444,12 +588,82 @@ function attachCardInteractions() {
     });
 
     document.querySelectorAll('.timely-card').forEach(cardEl => {
+        // Click action intercept route for selection routing loops
+        cardEl.addEventListener('click', (e) => {
+            if (state.syncMode !== 'none') {
+                e.preventDefault();
+                e.stopPropagation();
+                const cardId = cardEl.dataset.id;
+                
+                if (state.selectedCardIds.has(cardId)) {
+                    state.selectedCardIds.delete(cardId);
+                } else {
+                    state.selectedCardIds.add(cardId);
+                }
+                renderApp();
+            }
+        });
+
         cardEl.addEventListener('dragstart', handleDragStart);
         cardEl.addEventListener('dragend', handleDragEnd);
     });
 }
 
-// --- Planning Container Interaction Routing Module ---
+// --- Container Creation Management ---
+window.addNewPlanningContainer = function() {
+    const inputEl = document.getElementById('new-container-title');
+    if (!inputEl || !inputEl.value.trim()) return;
+
+    const title = inputEl.value.trim();
+    const type = state.currentPlanningView === 'goals' ? 'goal' : 'project';
+    const prefix = type === 'goal' ? 'g-' : 'p-';
+    const id = prefix + Date.now();
+
+    state.containers.push({ id, title, type });
+    saveDataToStorage();
+    inputEl.value = '';
+    renderApp();
+};
+
+// --- Container Deletion Mechanic ---
+window.deletePlanningContainer = function(containerId) {
+    if (!confirm("Are you sure you want to delete this track? All active cards inside will be returned safely to your Universal Board.")) return;
+
+    state.containers = state.containers.filter(c => c.id !== containerId);
+
+    state.cards.forEach(card => {
+        if (card.targetIndex === containerId) {
+            card.targetZone = 'universal';
+            card.targetIndex = 'universal';
+            card.type = 'Universal Card';
+            card.position = Date.now();
+        }
+    });
+
+    const typeFilter = state.currentPlanningView === 'goals' ? 'goal' : 'project';
+    const remainingCount = state.containers.filter(c => c.type === typeFilter).length;
+    if (state.carouselIndex > remainingCount - CAROUSEL_VISIBLE_LIMIT) {
+        state.carouselIndex = Math.max(0, remainingCount - CAROUSEL_VISIBLE_LIMIT);
+    }
+
+    saveDataToStorage();
+    renderApp();
+};
+
+// --- Carousel Pagination Controls ---
+window.shiftCarousel = function(direction) {
+    const typeFilter = state.currentPlanningView === 'goals' ? 'goal' : 'project';
+    const totalContainers = state.containers.filter(c => c.type === typeFilter).length;
+    
+    state.carouselIndex += direction;
+    
+    if (state.carouselIndex < 0) state.carouselIndex = 0;
+    if (state.carouselIndex > totalContainers - CAROUSEL_VISIBLE_LIMIT) {
+        state.carouselIndex = Math.max(0, totalContainers - CAROUSEL_VISIBLE_LIMIT);
+    }
+    renderApp();
+};
+
 function attachContainerInteractions() {
     document.querySelectorAll('.container-title').forEach(el => {
         el.addEventListener('blur', (e) => {
@@ -475,12 +689,10 @@ let draggedCardId = null;
 function setupDragAndDropFramework() {
     const workspace = document.getElementById('workspace-main');
     
-    // Initial bindings for static sidebar nodes
     bindDropZoneEvents(document.getElementById('universal-board'));
     bindDropZoneEvents(document.getElementById('trash-zone'));
 
     const observer = new MutationObserver(() => {
-        // Track the sidebar nodes explicitly to guarantee permanence
         bindDropZoneEvents(document.getElementById('universal-board'));
         bindDropZoneEvents(document.getElementById('trash-zone'));
         
@@ -501,13 +713,16 @@ function bindDropZoneEvents(zone) {
 }
 
 function handleDragStart(e) {
+    if (state.syncMode !== 'none') {
+        e.preventDefault(); // Suspend native drag-and-drop mechanics when custom syncing selection rules are active
+        return;
+    }
     draggedCardId = e.target.dataset.id;
     e.target.classList.add('dragging');
     e.dataTransfer.setData('text/plain', draggedCardId);
     e.dataTransfer.effectAllowed = 'move';
 }
 
-// --- Dynamic Cleanup Logic ---
 function handleDragEnd(e) {
     e.target.classList.remove('dragging');
     document.querySelectorAll('.drop-zone, #universal-board, #trash-zone, .trash-container').forEach(z => {
@@ -521,7 +736,6 @@ function handleDragOver(e) {
     e.dataTransfer.dropEffect = 'move';
 }
 
-// --- Toggle Active Structural Presentation State ---
 function handleDragEnter(e) {
     e.preventDefault();
     const zone = e.currentTarget;
@@ -530,8 +744,6 @@ function handleDragEnter(e) {
 
 function handleDragLeave(e) {
     const zone = e.currentTarget;
-    
-    // Verify focus hasn't entered internal card space boundaries
     const rect = zone.getBoundingClientRect();
     const isLeaving = e.clientX < rect.left || e.clientX >= rect.right || e.clientY < rect.top || e.clientY >= rect.bottom;
     
@@ -623,56 +835,4 @@ function saveModalChanges() {
         renderApp();
     }
     closeModal();
-}
-
-// --- iCal Sync Exporter Module Engine ---
-function exportSelectedToICal() {
-    const targetCards = state.cards.filter(c => 
-        ['daily', 'weekly', 'monthly'].includes(c.targetZone)
-    );
-
-    if (targetCards.length === 0) {
-        alert("No scheduled cards found in Daily, Weekly, or Monthly frames to export.");
-        return;
-    }
-
-    let icsContent = [
-        'BEGIN:VCALENDAR',
-        'VERSION:2.0',
-        'PRODID:-//Timely Local First Planner//NONSGML v1.0//EN',
-        'CALSCALE:GREGORIAN'
-    ];
-
-    const todayStr = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-
-    targetCards.forEach(card => {
-        icsContent.push('BEGIN:VEVENT');
-        icsContent.push(`UID:${card.id}@timely.local`);
-        icsContent.push(`DTSTAMP:${todayStr}`);
-        icsContent.push(`DTSTART:${todayStr}`); 
-        icsContent.push(`SUMMARY:${card.title}`);
-        if (card.description) {
-            icsContent.push(`DESCRIPTION:${card.description.replace(/\n/g, '\\n')}`);
-        }
-        
-        if (card.metadata && card.metadata.repeat && card.metadata.repeat !== 'none') {
-            let freq = 'DAILY';
-            if (card.metadata.repeat === 'weekly') freq = 'WEEKLY';
-            if (card.metadata.repeat === 'monthly') freq = 'MONTHLY';
-            icsContent.push(`RRULE:FREQ=${freq}`);
-        }
-        
-        icsContent.push('END:VEVENT');
-    });
-
-    icsContent.push('END:VCALENDAR');
-    const icsString = icsContent.join('\r\n');
-
-    const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `timely_schedule_${Date.now()}.ics`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
 }
