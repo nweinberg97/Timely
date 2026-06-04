@@ -193,6 +193,18 @@ body {
     transform: scale(0.98);
 }
 
+/* Prevents inner card details from interrupting board drag highlights */
+.timely-card * {
+    pointer-events: none;
+}
+
+/* Restores mouse interactions back to text inputs and action items */
+.timely-card .card-title,
+.timely-card .card-btn,
+.timely-card .card-actions-wrapper {
+    pointer-events: auto;
+}
+
 .card-header-row {
     display: flex;
     justify-content: space-between;
@@ -277,6 +289,12 @@ body {
     max-height: 450px;
     overflow-y: auto;
     box-shadow: var(--shadow-sm);
+}
+
+/* Fixes high ID specificity rule clash to make the sidebar highlight drop-ready */
+#universal-board.drag-over {
+    border-color: var(--accent) !important;
+    background-color: var(--accent-light) !important;
 }
 
 /* Daily View Setup */
@@ -422,6 +440,11 @@ body {
     background-color: #ffeeec;
     border-color: #ef4444;
     transform: scale(1.02);
+}
+
+/* Stops trash bin text and child elements from flickering drag state resets */
+.trash-container * {
+    pointer-events: none;
 }
 
 .trash-icon { font-size: 1.5rem; margin-bottom: 0.25rem; }
