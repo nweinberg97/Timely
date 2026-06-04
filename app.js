@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderApp();
 });
 
-// --- LocalStorage Mechanics ---
+// --- Local Storage Mechanics ---
 function saveDataToStorage() {
     localStorage.setItem('timely_state_cards', JSON.stringify(state.cards));
     localStorage.setItem('timely_state_containers', JSON.stringify(state.containers));
@@ -37,7 +37,7 @@ function loadDataFromStorage() {
     if (savedContainers) state.containers = JSON.parse(savedContainers);
 }
 
-// --- Modified Default Containers (Matching the updated theme words) ---
+// --- Modified Default Containers ---
 function initDefaultContainers() {
     if (state.containers.length === 0) {
         state.containers = [
@@ -67,12 +67,12 @@ function registerGlobalEventListeners() {
         });
     });
 
-    // Inboxes and Utility Fast-Adds
+    // Inboxes And Utility Fast Adds
     document.getElementById('btn-add-universal').addEventListener('click', () => {
         createNewCard({ type: 'Universal Card', targetZone: 'universal', targetIndex: 'universal' });
     });
     
-    // Native Drag and Drop Management Hooks
+    // Native Drag And Drop Management Hooks
     setupDragAndDropFramework();
 
     // Modal Interaction Interfaces
@@ -108,9 +108,9 @@ function setupPlanningNavListeners() {
     const planNav = document.getElementById('planning-view-selector');
     if (!planNav) return;
     
-    // UPDATED: "Strategic Goals" changed to "current goals"
+    // Capitalized consistently to match 'Active Projects'
     planNav.innerHTML = `
-        <button class="sub-nav-btn ${state.currentPlanningView === 'goals' ? 'active' : ''}" data-pview="goals">current goals</button>
+        <button class="sub-nav-btn ${state.currentPlanningView === 'goals' ? 'active' : ''}" data-pview="goals">Current Goals</button>
         <button class="sub-nav-btn ${state.currentPlanningView === 'projects' ? 'active' : ''}" data-pview="projects">Active Projects</button>
     `;
 
@@ -146,7 +146,7 @@ window.addNewPlanningContainer = function() {
     renderApp();
 };
 
-// --- Container Deletion Mechanic (With Card Rescue Strategy) ---
+// --- Container Deletion Mechanic ---
 window.deletePlanningContainer = function(containerId) {
     if (!confirm("Are you sure you want to delete this track? All active cards inside will be returned safely to your Universal Board.")) return;
 
@@ -189,7 +189,7 @@ window.shiftCarousel = function(direction) {
     renderApp();
 };
 
-// --- High-Performance Render System ---
+// --- High Performance Render System ---
 function renderApp() {
     const mainWorkspace = document.getElementById('workspace-main');
     mainWorkspace.innerHTML = ''; 
@@ -211,8 +211,6 @@ function renderApp() {
 }
 
 // --- Specific View Templates Execution ---
-
-// UPDATED: "daily schedule grid" -> "daily schedule"
 function renderDailyView(target) {
     let html = `<div class="pane-header"><h2>daily schedule</h2><button class="add-card-btn" onclick="createNewCardFromUI('Daily Card', '08:00')">+ Add Time Block</button></div>`;
     html += `<div class="daily-layout">`;
@@ -232,7 +230,6 @@ function renderDailyView(target) {
     target.innerHTML = html;
 }
 
-// UPDATED: "Weekly Routine Horizon" -> "weekly schedule"
 function renderWeeklyView(target) {
     let html = `
         <div class="pane-header">
@@ -262,7 +259,6 @@ function renderWeeklyView(target) {
     target.innerHTML = html;
 }
 
-// UPDATED: "Monthly Calendar Matrix" -> "monthly calendar"
 function renderMonthlyView(target) {
     let html = `
         <div class="pane-header">
@@ -287,7 +283,6 @@ function renderMonthlyView(target) {
     target.innerHTML = html;
 }
 
-// UPDATED: "Reminders Desk" -> "Reminders Board" && "Action Desk" -> "Things I need to remember"
 function renderRemindersView(target) {
     let html = `
         <div class="pane-header"><h2>Reminders Board</h2></div>
@@ -303,8 +298,6 @@ function renderRemindersView(target) {
     target.innerHTML = html;
 }
 
-// UPDATED: "Strategic Vision Architecture" -> "Things I'm Working Towards"
-// UPDATED: "Active Execution Blueprints" -> "Things I'm Building"
 function renderPlanningModeView(target) {
     const isGoals = state.currentPlanningView === 'goals';
     const typeFilter = isGoals ? 'goal' : 'project';
@@ -476,7 +469,7 @@ function attachContainerInteractions() {
     });
 }
 
-// --- Native High-Fidelity Drag and Drop Engine ---
+// --- Native High Fidelity Drag And Drop Engine ---
 let draggedCardId = null;
 
 function setupDragAndDropFramework() {
@@ -514,7 +507,7 @@ function handleDragStart(e) {
     e.dataTransfer.effectAllowed = 'move';
 }
 
-// --- Dynamic cleanup logic targeting the layout frames safely ---
+// --- Dynamic Cleanup Logic ---
 function handleDragEnd(e) {
     e.target.classList.remove('dragging');
     document.querySelectorAll('.drop-zone, #universal-board, #trash-zone, .trash-container').forEach(z => {
@@ -528,7 +521,7 @@ function handleDragOver(e) {
     e.dataTransfer.dropEffect = 'move';
 }
 
-// --- Toggle active structural presentation state properties cleanly ---
+// --- Toggle Active Structural Presentation State ---
 function handleDragEnter(e) {
     e.preventDefault();
     const zone = e.currentTarget;
