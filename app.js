@@ -7,9 +7,13 @@
 let state = {
     currentMode: 'schedule', // 'schedule' | 'planning'
     currentScheduleView: 'daily', // 'daily' | 'weekly' | 'monthly' | 'reminders'
+    currentPlanningView: 'goals', // 'goals' | 'projects'
+    carouselIndex: 0, // Track column sliding viewport offset
     cards: [],
     containers: [] // For Goals & Projects
 };
+
+const CAROUSEL_VISIBLE_LIMIT = 3; // Max number of visible columns in carousel
 
 // --- Initialization & Bootstrapping ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -38,6 +42,8 @@ function initDefaultContainers() {
         state.containers = [
             { id: 'g-1', title: 'Health & Vitality', type: 'goal' },
             { id: 'g-2', title: 'Deep Work Philosophy', type: 'goal' },
+            { id: 'g-3', title: 'Financial Independence', type: 'goal' },
+            { id: 'g-4', title: 'Mindfulness Practice', type: 'goal' },
             { id: 'p-1', title: 'Forth Hub Buildout', type: 'project' },
             { id: 'p-2', title: 'The Call of Guardians MS', type: 'project' }
         ];
@@ -51,7 +57,7 @@ function registerGlobalEventListeners() {
     document.getElementById('btn-schedule-mode').addEventListener('click', () => switchMode('schedule'));
     document.getElementById('btn-planning-mode').addEventListener('click', () => switchMode('planning'));
 
-    // Sub-view Tab Navigations
+    // Schedule Sub-view Tab Navigations
     document.querySelectorAll('#schedule-view-selector .sub-nav-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('#schedule-view-selector .sub-nav-btn').forEach(b => b.classList.remove('active'));
@@ -60,9 +66,8 @@ function registerGlobalEventListeners() {
         });
     });
 
-// Inboxes and Utility Fast-Adds
+    // Inboxes and Utility Fast-Adds
     document.getElementById('btn-add-universal').addEventListener('click', () => {
-        // FIX: Changed targetIndex from '0' to 'universal' to match filtering criteria
         createNewCard({ type: 'Universal Card', targetZone: 'universal', targetIndex: 'universal' });
     });
     
@@ -80,16 +85,42 @@ function registerGlobalEventListeners() {
 // --- View Navigation Controllers ---
 function switchMode(targetMode) {
     state.currentMode = targetMode;
+    state.carouselIndex = 0; // Reset viewport alignment
     document.getElementById('btn-schedule-mode').classList.toggle('active', targetMode === 'schedule');
     document.getElementById('btn-planning-mode').classList.toggle('active', targetMode === 'planning');
     
-    const subNav = document.getElementById('schedule-view-selector');
+    const schedNav = document.getElementById('schedule-view-selector');
+    const planNav = document.getElementById('planning-view-selector');
+
     if (targetMode === 'schedule') {
-        subNav.classList.remove('hidden');
+        if (schedNav) schedNav.classList.remove('hidden');
+        if (planNav) planNav.classList.add('hidden');
     } else {
-        subNav.classList.add('hidden');
+        if (schedNav) schedNav.classList.add('hidden');
+        if (planNav) planNav.classList.remove('hidden');
+        setupPlanningNavListeners();
     }
     renderApp();
+}
+
+function setupPlanningNavListeners() {
+    const planNav = document.getElementById('planning-view-selector');
+    if (!planNav) return;
+    
+    planNav.innerHTML = `
+        <button class="sub-nav-btn ${state.currentPlanningView === 'goals' ? 'active' : ''}" data-pview="goals">Strategic Goals</button>
+        <button class="sub-nav-btn ${state.currentPlanningView === 'projects' ? 'active' : ''}" data-pview="projects">Active Projects</button>
+    `;
+
+    planNav.querySelectorAll('.sub-nav-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            planNav.querySelectorAll('.sub-nav-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            state.currentPlanningView = e.target.dataset.pview;
+            state.carouselIndex = 0; // Reset slider window bounds
+            renderApp();
+        });
+    });
 }
 
 function switchScheduleView(targetView) {
@@ -97,10 +128,41 @@ function switchScheduleView(targetView) {
     renderApp();
 }
 
+// --- Container Creation Management ---
+window.addNewPlanningContainer = function() {
+    const inputEl = document.getElementById('new-container-title');
+    if (!inputEl || !inputEl.value.trim()) return;
+
+    const title = inputEl.value.trim();
+    const type = state.currentPlanningView === 'goals' ? 'goal' : 'project';
+    const prefix = type === 'goal' ? 'g-' : 'p-';
+    const id = prefix + Date.now();
+
+    state.containers.push({ id, title, type });
+    saveDataToStorage();
+    inputEl.value = '';
+    renderApp();
+};
+
+// --- Carousel Pagination Controls ---
+window.shiftCarousel = function(direction) {
+    const typeFilter = state.currentPlanningView === 'goals' ? 'goal' : 'project';
+    const totalContainers = state.containers.filter(c => c.type === typeFilter).length;
+    
+    state.carouselIndex += direction;
+    
+    // Safety Bounds Verification
+    if (state.carouselIndex < 0) state.carouselIndex = 0;
+    if (state.carouselIndex > totalContainers - CAROUSEL_VISIBLE_LIMIT) {
+        state.carouselIndex = Math.max(0, totalContainers - CAROUSEL_VISIBLE_LIMIT);
+    }
+    renderApp();
+};
+
 // --- High-Performance Render System ---
 function renderApp() {
     const mainWorkspace = document.getElementById('workspace-main');
-    mainWorkspace.innerHTML = ''; // Clean old context nodes completely
+    mainWorkspace.innerHTML = ''; 
 
     if (state.currentMode === 'schedule') {
         switch (state.currentScheduleView) {
@@ -138,7 +200,6 @@ function renderDailyView(target) {
 }
 
 function renderWeeklyView(target) {
-    // FIX: Added the '+ Add Routine' action button to the layout header
     let html = `
         <div class="pane-header">
             <h2>Weekly Routine Horizon</h2>
@@ -167,10 +228,7 @@ function renderWeeklyView(target) {
     target.innerHTML = html;
 }
 
-
-
 function renderMonthlyView(target) {
-    // FIX: Added the '+ Add Event' action button to the layout header
     let html = `
         <div class="pane-header">
             <h2>Monthly Calendar Matrix</h2>
@@ -180,7 +238,6 @@ function renderMonthlyView(target) {
     const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     weekDays.forEach(wd => html += `<div class="month-day-head">${wd}</div>`);
 
-    // Emulating standard 31-day view block
     for (let d = 1; d <= 31; d++) {
         html += `
             <div class="monthly-day-cell">
@@ -211,43 +268,63 @@ function renderRemindersView(target) {
 }
 
 function renderPlanningModeView(target) {
-    const goals = state.containers.filter(c => c.type === 'goal');
-    const projects = state.containers.filter(c => c.type === 'project');
-
-    let html = `<div class="pane-header"><h2>System Architecture Framework (Thinking Mode)</h2></div>`;
+    const isGoals = state.currentPlanningView === 'goals';
+    const typeFilter = isGoals ? 'goal' : 'project';
+    const list = state.containers.filter(c => c.type === typeFilter);
     
-    html += `<h3>Strategic Long-Term Goals</h3><div class="planning-layout" style="margin-bottom: 2rem;">`;
-    goals.forEach(g => {
+    // Slice active columns out for carousel sliding calculation logic
+    const visibleColumns = list.slice(state.carouselIndex, state.carouselIndex + CAROUSEL_VISIBLE_LIMIT);
+
+    let html = `
+        <div class="pane-header">
+            <h2>${isGoals ? 'Strategic Vision Architecture' : 'Active Execution Blueprints'}</h2>
+            <div class="carousel-fast-add-panel">
+                <input type="text" id="new-container-title" placeholder="New ${isGoals ? 'Goal Track' : 'Project Board'}..." />
+                <button class="action-btn primary" onclick="addNewPlanningContainer()">+ Build Container</button>
+            </div>
+        </div>
+    `;
+
+    html += `<div class="carousel-view-viewport-frame">`;
+    
+    // Left Sliding Button Selector
+    const leftDisabled = state.carouselIndex === 0 ? 'disabled' : '';
+    html += `<button class="carousel-nav-btn left-arrow" ${leftDisabled} onclick="shiftCarousel(-1)">◀</button>`;
+    
+    html += `<div class="planning-layout carousel-grid-display">`;
+    
+    if (visibleColumns.length === 0) {
+        html += `<div class="empty-view-placeholder-prompt">No tracking layouts initialized. Use the form above to add structures.</div>`;
+    }
+
+    visibleColumns.forEach(item => {
+        const cardOriginType = isGoals ? 'Goal Task Card' : 'Project Task Card';
         html += `
-            <div class="flex-board-column">
-                <div class="pane-header"><strong>${g.title}</strong><button class="add-card-btn" onclick="createNewCardFromUI('Goal Task Card', '${g.id}')">+ Add Step</button></div>
-                <div class="drop-zone" data-zone-type="goal" data-zone-id="${g.id}">
-                    ${renderCardsForZone('goal', g.id)}
+            <div class="flex-board-column animate-column-entry">
+                <div class="pane-header">
+                    <strong>${item.title}</strong>
+                    <button class="add-card-btn" onclick="createNewCardFromUI('${cardOriginType}', '${item.id}')">+ Add Step</button>
+                </div>
+                <div class="drop-zone" data-zone-type="${typeFilter}" data-zone-id="${item.id}">
+                    ${renderCardsForZone(typeFilter, item.id)}
                 </div>
             </div>
         `;
     });
-    html += `</div>`;
-
-    html += `<h3>Active Implementation Projects</h3><div class="planning-layout">`;
-    projects.forEach(p => {
-        html += `
-            <div class="flex-board-column">
-                <div class="pane-header"><strong>${p.title}</strong><button class="add-card-btn" onclick="createNewCardFromUI('Project Task Card', '${p.id}')">+ Add Task</button></div>
-                <div class="drop-zone" data-zone-type="project" data-zone-id="${p.id}">
-                    ${renderCardsForZone('project', p.id)}
-                </div>
-            </div>
-        `;
-    });
+    
     html += `</div>`;
     
+    // Right Sliding Button Selector
+    const rightDisabled = (state.carouselIndex >= list.length - CAROUSEL_VISIBLE_LIMIT) || list.length <= CAROUSEL_VISIBLE_LIMIT ? 'disabled' : '';
+    html += `<button class="carousel-nav-btn right-arrow" ${rightDisabled} onclick="shiftCarousel(1)">▶</button>`;
+    
+    html += `</div>`;
     target.innerHTML = html;
 }
 
 function renderUniversalBoard() {
     const board = document.getElementById('universal-board');
-    board.innerHTML = renderCardsForZone('universal', 'universal');
+    if (board) board.innerHTML = renderCardsForZone('universal', 'universal');
 }
 
 function renderCardsForZone(zoneType, zoneId) {
@@ -258,7 +335,6 @@ function renderCardsForZone(zoneType, zoneId) {
         .join('');
 }
 
-// Global shortcut dynamic bindings helper
 window.createNewCardFromUI = function(originType, zoneId) {
     let resolvedZone = 'universal';
     if (originType === 'Daily Card') resolvedZone = 'daily';
@@ -271,7 +347,6 @@ window.createNewCardFromUI = function(originType, zoneId) {
     createNewCard({ type: originType, targetZone: resolvedZone, targetIndex: zoneId });
 };
 
-// --- Card HTML Generator Generator ---
 function generateCardHTML(card) {
     const routineBadge = card.metadata && card.metadata.repeat && card.metadata.repeat !== 'none' 
         ? `<span class="badge routine">🔁 ${card.metadata.repeat}</span>` 
@@ -293,13 +368,12 @@ function generateCardHTML(card) {
     `;
 }
 
-// --- Mutation and Core CRUD Architecture ---
 function createNewCard({ type, targetZone, targetIndex }) {
     const newCard = {
         id: 'card_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
         title: 'Untitled Plan',
         description: '',
-        type: type, // Origin Type Permanent Record
+        type: type, 
         createdAt: new Date().toISOString(),
         status: 'open',
         position: Date.now(),
@@ -314,7 +388,6 @@ function createNewCard({ type, targetZone, targetIndex }) {
 }
 
 function attachCardInteractions() {
-    // Structural ContentEditable Realtime Sync
     document.querySelectorAll('.card-title').forEach(el => {
         el.addEventListener('blur', (e) => {
             const cardId = e.target.dataset.id;
@@ -329,7 +402,6 @@ function attachCardInteractions() {
         });
     });
 
-    // Custom Context Configurations Dialog Triggers
     document.querySelectorAll('.edit-trigger').forEach(el => {
         el.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -337,7 +409,6 @@ function attachCardInteractions() {
         });
     });
 
-    // Drag Initialization Setup listeners
     document.querySelectorAll('.timely-card').forEach(cardEl => {
         cardEl.addEventListener('dragstart', handleDragStart);
         cardEl.addEventListener('dragend', handleDragEnd);
@@ -348,17 +419,17 @@ function attachCardInteractions() {
 let draggedCardId = null;
 
 function setupDragAndDropFramework() {
-    const zones = [document.getElementById('universal-board'), document.getElementById('trash-zone')];
-    
-    // Delegate dynamic event hooks across shared workspace containers
     const workspace = document.getElementById('workspace-main');
     
-    // Registering dynamic capture arrays for flexible execution
+    // Initial bindings for static sidebar nodes
     bindDropZoneEvents(document.getElementById('universal-board'));
     bindDropZoneEvents(document.getElementById('trash-zone'));
 
-    // Observe changes inside workspace main grid
     const observer = new MutationObserver(() => {
+        // Track the sidebar nodes explicitly to guarantee permanence
+        bindDropZoneEvents(document.getElementById('universal-board'));
+        bindDropZoneEvents(document.getElementById('trash-zone'));
+        
         document.querySelectorAll('.drop-zone').forEach(zone => {
             bindDropZoneEvents(zone);
         });
@@ -384,7 +455,7 @@ function handleDragStart(e) {
 
 function handleDragEnd(e) {
     e.target.classList.remove('dragging');
-    document.querySelectorAll('.drop-zone, .trash-container').forEach(z => {
+    document.querySelectorAll('.drop-zone, #universal-board, #trash-zone, .trash-container').forEach(z => {
         z.classList.remove('drag-over');
     });
     draggedCardId = null;
@@ -403,7 +474,14 @@ function handleDragEnter(e) {
 
 function handleDragLeave(e) {
     const zone = e.currentTarget;
-    zone.classList.remove('drag-over');
+    
+    // Verify focus hasn't entered internal card space boundaries
+    const rect = zone.getBoundingClientRect();
+    const isLeaving = e.clientX < rect.left || e.clientX >= rect.right || e.clientY < rect.top || e.clientY >= rect.bottom;
+    
+    if (isLeaving) {
+        zone.classList.remove('drag-over');
+    }
 }
 
 function handleDrop(e) {
@@ -414,14 +492,14 @@ function handleDrop(e) {
     const cardId = e.dataTransfer.getData('text/plain') || draggedCardId;
     if (!cardId) return;
 
-    if (zone.id === 'trash-zone') {
+    if (zone.id === 'trash-zone' || zone.classList.contains('trash-container')) {
         state.cards = state.cards.filter(c => c.id !== cardId);
         saveDataToStorage();
         renderApp();
         return;
     }
 
-    const zoneType = zone.dataset.zoneType;
+    const zoneType = zone.dataset.zoneType || 'universal';
     const zoneId = zone.dataset.zoneId || 'universal';
 
     const card = state.cards.find(c => c.id === cardId);
@@ -430,7 +508,6 @@ function handleDrop(e) {
         card.targetIndex = zoneId;
         card.position = Date.now();
 
-        // 🟢 TWO-WAY CONVERSION FOR ALL BOARD TYPES
         if (zoneType === 'universal') {
             card.type = 'Universal Card';
         } else if (zoneType === 'daily') {
@@ -494,7 +571,6 @@ function saveModalChanges() {
 
 // --- iCal Sync Exporter Module Engine ---
 function exportSelectedToICal() {
-    // Selector restriction: Daily, Weekly, Monthly cards placed in schedule views
     const targetCards = state.cards.filter(c => 
         ['daily', 'weekly', 'monthly'].includes(c.targetZone)
     );
@@ -517,13 +593,12 @@ function exportSelectedToICal() {
         icsContent.push('BEGIN:VEVENT');
         icsContent.push(`UID:${card.id}@timely.local`);
         icsContent.push(`DTSTAMP:${todayStr}`);
-        icsContent.push(`DTSTART:${todayStr}`); // Default fallback instant timeline window marker
+        icsContent.push(`DTSTART:${todayStr}`); 
         icsContent.push(`SUMMARY:${card.title}`);
         if (card.description) {
             icsContent.push(`DESCRIPTION:${card.description.replace(/\n/g, '\\n')}`);
         }
         
-        // Routines serialization mapper pattern standard rules
         if (card.metadata && card.metadata.repeat && card.metadata.repeat !== 'none') {
             let freq = 'DAILY';
             if (card.metadata.repeat === 'weekly') freq = 'WEEKLY';
@@ -537,7 +612,6 @@ function exportSelectedToICal() {
     icsContent.push('END:VCALENDAR');
     const icsString = icsContent.join('\r\n');
 
-    // Create secure transient execution down-pipe link element
     const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
