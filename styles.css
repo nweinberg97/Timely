@@ -133,6 +133,7 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
+    gap: 1rem;
 }
 
 .pane-header h2 {
@@ -193,12 +194,11 @@ body {
     transform: scale(0.98);
 }
 
-/* Prevents inner card details from interrupting board drag highlights */
+/* Stops interior text blocks from interrupting drop-zone highlights */
 .timely-card * {
     pointer-events: none;
 }
 
-/* Restores mouse interactions back to text inputs and action items */
 .timely-card .card-title,
 .timely-card .card-btn,
 .timely-card .card-actions-wrapper {
@@ -271,15 +271,15 @@ body {
     min-height: 60px;
     border: 2px dashed transparent;
     border-radius: var(--radius-sm);
-    transition: background-color 0.2s, border-color 0.2s;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .drop-zone.drag-over {
-    border-color: var(--accent);
-    background-color: var(--accent-light);
+    border-color: var(--accent) !important;
+    background-color: var(--accent-light) !important;
 }
 
-/* Universal Board Sidebar */
+/* Universal Board Sidebar Setup */
 #universal-board {
     background-color: var(--bg-pane);
     border: 1px solid var(--border-color);
@@ -291,9 +291,8 @@ body {
     box-shadow: var(--shadow-sm);
 }
 
-/* Fixes high ID specificity rule clash to make the sidebar highlight drop-ready */
 #universal-board.drag-over {
-    border-color: var(--accent) !important;
+    border: 2px dashed var(--accent) !important;
     background-color: var(--accent-light) !important;
 }
 
@@ -403,11 +402,75 @@ body {
     margin-bottom: 0.25rem;
 }
 
-/* Reminders & Flexible Boards */
-.reminders-layout, .planning-layout {
+/* Reminders Layout */
+.reminders-layout {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: 1fr;
+}
+
+/* Carousel Layout System */
+.carousel-fast-add-panel {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.carousel-fast-add-panel input[type="text"] {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.85rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    outline: none;
+    width: 200px;
+}
+
+.carousel-fast-add-panel input:focus {
+    border-color: var(--accent);
+}
+
+.carousel-view-viewport-frame {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    position: relative;
+}
+
+.carousel-nav-btn {
+    background-color: var(--bg-pane);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s;
+    user-select: none;
+    z-index: 10;
+}
+
+.carousel-nav-btn:hover:not([disabled]) {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: scale(1.1);
+}
+
+.carousel-nav-btn[disabled] {
+    opacity: 0.3;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.carousel-grid-display {
+    flex-grow: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) !important; /* Forces strict 3-column carousel layout window */
     gap: 1.25rem;
+    transition: all 0.3s ease-in-out;
 }
 
 .flex-board-column {
@@ -416,7 +479,7 @@ body {
     padding: 1rem;
     display: flex;
     flex-direction: column;
-    min-height: 400px;
+    min-height: 500px;
 }
 
 .flex-board-column .drop-zone {
@@ -424,8 +487,28 @@ body {
     margin-top: 0.5rem;
 }
 
+.empty-view-placeholder-prompt {
+    grid-column: span 3;
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+/* Animations */
+.animate-column-entry {
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 /* Trash Zone Container */
-.trash-container {
+.trash-container, #trash-zone {
     background-color: var(--trash-bg);
     border: 2px dashed var(--trash-border);
     color: var(--trash-text);
@@ -436,13 +519,12 @@ body {
     transition: all 0.2s;
 }
 
-.trash-container.drag-over {
-    background-color: #ffeeec;
-    border-color: #ef4444;
+.trash-container.drag-over, #trash-zone.drag-over {
+    background-color: #ffeeec !important;
+    border-color: #ef4444 !important;
     transform: scale(1.02);
 }
 
-/* Stops trash bin text and child elements from flickering drag state resets */
 .trash-container * {
     pointer-events: none;
 }
