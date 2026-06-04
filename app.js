@@ -144,6 +144,34 @@ window.addNewPlanningContainer = function() {
     renderApp();
 };
 
+// --- Container Deletion Mechanic (With Card Rescue Strategy) ---
+window.deletePlanningContainer = function(containerId) {
+    if (!confirm("Are you sure you want to delete this track? All active cards inside will be returned safely to your Universal Board.")) return;
+
+    // 1. Target and sweep structural elements inside the array
+    state.containers = state.containers.filter(c => c.id !== containerId);
+
+    // 2. Structural Catch: Redirect orphan tasks cleanly back onto the Universal Board
+    state.cards.forEach(card => {
+        if (card.targetIndex === containerId) {
+            card.targetZone = 'universal';
+            card.targetIndex = 'universal';
+            card.type = 'Universal Card';
+            card.position = Date.now();
+        }
+    });
+
+    // 3. Keep sliding viewport bounds from getting pushed out of tracking alignment
+    const typeFilter = state.currentPlanningView === 'goals' ? 'goal' : 'project';
+    const remainingCount = state.containers.filter(c => c.type === typeFilter).length;
+    if (state.carouselIndex > remainingCount - CAROUSEL_VISIBLE_LIMIT) {
+        state.carouselIndex = Math.max(0, remainingCount - CAROUSEL_VISIBLE_LIMIT);
+    }
+
+    saveDataToStorage();
+    renderApp();
+};
+
 // --- Carousel Pagination Controls ---
 window.shiftCarousel = function(direction) {
     const typeFilter = state.currentPlanningView === 'goals' ? 'goal' : 'project';
@@ -177,6 +205,7 @@ function renderApp() {
 
     renderUniversalBoard();
     attachCardInteractions();
+    attachContainerInteractions(); // Bind interactive header elements securely
 }
 
 // --- Specific View Templates Execution ---
@@ -302,7 +331,10 @@ function renderPlanningModeView(target) {
         html += `
             <div class="flex-board-column animate-column-entry">
                 <div class="pane-header">
-                    <strong>${item.title}</strong>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-grow: 1;">
+                        <button class="card-btn" onclick="deletePlanningContainer('${item.id}')" title="Delete Column" style="font-size: 0.85rem; padding: 0.1rem 0.3rem; color: var(--trash-text);">✕</button>
+                        <strong class="container-title" contenteditable="true" data-id="${item.id}" style="outline: none; cursor: text;">${item.title}</strong>
+                    </div>
                     <button class="add-card-btn" onclick="createNewCardFromUI('${cardOriginType}', '${item.id}')">+ Add Step</button>
                 </div>
                 <div class="drop-zone" data-zone-type="${typeFilter}" data-zone-id="${item.id}">
@@ -412,6 +444,26 @@ function attachCardInteractions() {
     document.querySelectorAll('.timely-card').forEach(cardEl => {
         cardEl.addEventListener('dragstart', handleDragStart);
         cardEl.addEventListener('dragend', handleDragEnd);
+    });
+}
+
+// --- Planning Container Interaction Routing Module ---
+function attachContainerInteractions() {
+    document.querySelectorAll('.container-title').forEach(el => {
+        el.addEventListener('blur', (e) => {
+            const containerId = e.target.dataset.id;
+            const container = state.containers.find(c => c.id === containerId);
+            if (container) {
+                container.title = e.target.innerText.trim() || 'Untitled Track';
+                saveDataToStorage();
+            }
+        });
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { 
+                e.preventDefault(); 
+                e.target.blur(); 
+            }
+        });
     });
 }
 
