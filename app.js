@@ -359,8 +359,13 @@ function renderWeeklyView(target) {
         dateRangeHeadingString = `${startMonthLabel} ${currentWeekStart.getDate()} – ${currentWeekEnd.getDate()}, ${currentWeekEnd.getFullYear()}`;
     }
 
+    // CALCULATE DYNAMIC START TARGET: Match Monday of this specific week view
+    const mondayIsoKey = currentWeekStart.toISOString().split('T')[0];
+    const defaultWeeklyIndex = `${mondayIsoKey}_Morning`;
+
     let html = generateTimeNavigatorHTML("Weekly Schedule", dateRangeHeadingString);
-    html += `<div style="display:flex; justify-content:flex-end; margin-bottom:1rem;"><button class="add-card-btn" onclick="createNewCardFromUI('Weekly Card', 'Monday-Morning')">+ Add Routine</button></div>`;
+    // FIXED: Uses dynamic week-specific slot token instead of hardcoded 'Monday-Morning'
+    html += `<div style="display:flex; justify-content:flex-end; margin-bottom:1rem;"><button class="add-card-btn" onclick="createNewCardFromUI('Weekly Card', '${defaultWeeklyIndex}')">+ Add Routine</button></div>`;
     html += `<div class="weekly-layout">`;
     
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -401,8 +406,13 @@ function renderMonthlyView(target) {
     const d = state.currentDate;
     const monthStringTitle = `${MONTHS_OF_YEAR[d.getMonth()]} ${d.getFullYear()}`;
 
+    // CALCULATE DYNAMIC START TARGET: Day 1 of this specific year/month selection
+    const firstDayOfMonthDate = new Date(d.getFullYear(), d.getMonth(), 1);
+    const firstDayIsoKey = firstDayOfMonthDate.toISOString().split('T')[0];
+
     let html = generateTimeNavigatorHTML("Monthly Calendar", monthStringTitle);
-    html += `<div style="display:flex; justify-content:flex-end; margin-bottom:1rem;"><button class="add-card-btn" onclick="createNewCardFromUI('Monthly Card', 'day-1')">+ Add Event</button></div>`;
+    // FIXED: Uses dynamic ISO date string for Day 1 of this month instead of hardcoded 'day-1'
+    html += `<div style="display:flex; justify-content:flex-end; margin-bottom:1rem;"><button class="add-card-btn" onclick="createNewCardFromUI('Monthly Card', '${firstDayIsoKey}')">+ Add Event</button></div>`;
     html += `<div class="monthly-layout">`;
     
     const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
