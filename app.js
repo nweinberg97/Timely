@@ -37,6 +37,7 @@ function loadDataFromStorage() {
     if (savedContainers) state.containers = JSON.parse(savedContainers);
 }
 
+// --- Modified Default Containers (Matching the updated theme words) ---
 function initDefaultContainers() {
     if (state.containers.length === 0) {
         state.containers = [
@@ -107,8 +108,9 @@ function setupPlanningNavListeners() {
     const planNav = document.getElementById('planning-view-selector');
     if (!planNav) return;
     
+    // UPDATED: "Strategic Goals" changed to "current goals"
     planNav.innerHTML = `
-        <button class="sub-nav-btn ${state.currentPlanningView === 'goals' ? 'active' : ''}" data-pview="goals">Strategic Goals</button>
+        <button class="sub-nav-btn ${state.currentPlanningView === 'goals' ? 'active' : ''}" data-pview="goals">current goals</button>
         <button class="sub-nav-btn ${state.currentPlanningView === 'projects' ? 'active' : ''}" data-pview="projects">Active Projects</button>
     `;
 
@@ -209,8 +211,10 @@ function renderApp() {
 }
 
 // --- Specific View Templates Execution ---
+
+// UPDATED: "daily schedule grid" -> "daily schedule"
 function renderDailyView(target) {
-    let html = `<div class="pane-header"><h2>Daily Schedule Grid</h2><button class="add-card-btn" onclick="createNewCardFromUI('Daily Card', '08:00')">+ Add Time Block</button></div>`;
+    let html = `<div class="pane-header"><h2>daily schedule</h2><button class="add-card-btn" onclick="createNewCardFromUI('Daily Card', '08:00')">+ Add Time Block</button></div>`;
     html += `<div class="daily-layout">`;
     const hours = ["06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
     
@@ -228,10 +232,11 @@ function renderDailyView(target) {
     target.innerHTML = html;
 }
 
+// UPDATED: "Weekly Routine Horizon" -> "weekly schedule"
 function renderWeeklyView(target) {
     let html = `
         <div class="pane-header">
-            <h2>Weekly Routine Horizon</h2>
+            <h2>weekly schedule</h2>
             <button class="add-card-btn" onclick="createNewCardFromUI('Weekly Card', 'Monday-Morning')">+ Add Routine</button>
         </div>`;
     html += `<div class="weekly-layout">`;
@@ -257,10 +262,11 @@ function renderWeeklyView(target) {
     target.innerHTML = html;
 }
 
+// UPDATED: "Monthly Calendar Matrix" -> "monthly calendar"
 function renderMonthlyView(target) {
     let html = `
         <div class="pane-header">
-            <h2>Monthly Calendar Matrix</h2>
+            <h2>monthly calendar</h2>
             <button class="add-card-btn" onclick="createNewCardFromUI('Monthly Card', 'day-1')">+ Add Event</button>
         </div>`;
     html += `<div class="monthly-layout">`;
@@ -281,12 +287,13 @@ function renderMonthlyView(target) {
     target.innerHTML = html;
 }
 
+// UPDATED: "Reminders Desk" -> "Reminders Board" && "Action Desk" -> "Things I need to remember"
 function renderRemindersView(target) {
     let html = `
-        <div class="pane-header"><h2>Reminders Desk</h2></div>
+        <div class="pane-header"><h2>Reminders Board</h2></div>
         <div class="reminders-layout">
             <div class="flex-board-column">
-                <div class="pane-header"><strong>Action Desk</strong><button class="add-card-btn" onclick="createNewCardFromUI('Reminder Card', 'reminders-main')">+ Add</button></div>
+                <div class="pane-header"><strong>Things I need to remember</strong><button class="add-card-btn" onclick="createNewCardFromUI('Reminder Card', 'reminders-main')">+ Add</button></div>
                 <div class="drop-zone" data-zone-type="reminders" data-zone-id="reminders-main">
                     ${renderCardsForZone('reminders', 'reminders-main')}
                 </div>
@@ -296,6 +303,8 @@ function renderRemindersView(target) {
     target.innerHTML = html;
 }
 
+// UPDATED: "Strategic Vision Architecture" -> "Things I'm Working Towards"
+// UPDATED: "Active Execution Blueprints" -> "Things I'm Building"
 function renderPlanningModeView(target) {
     const isGoals = state.currentPlanningView === 'goals';
     const typeFilter = isGoals ? 'goal' : 'project';
@@ -306,7 +315,7 @@ function renderPlanningModeView(target) {
 
     let html = `
         <div class="pane-header">
-            <h2>${isGoals ? 'Strategic Vision Architecture' : 'Active Execution Blueprints'}</h2>
+            <h2>${isGoals ? "Things I'm Working Towards" : "Things I'm Building"}</h2>
             <div class="carousel-fast-add-panel">
                 <input type="text" id="new-container-title" placeholder="New ${isGoals ? 'Goal Track' : 'Project Board'}..." />
                 <button class="action-btn primary" onclick="addNewPlanningContainer()">+ Build Container</button>
@@ -505,6 +514,7 @@ function handleDragStart(e) {
     e.dataTransfer.effectAllowed = 'move';
 }
 
+// --- Dynamic cleanup logic targeting the layout frames safely ---
 function handleDragEnd(e) {
     e.target.classList.remove('dragging');
     document.querySelectorAll('.drop-zone, #universal-board, #trash-zone, .trash-container').forEach(z => {
@@ -518,6 +528,7 @@ function handleDragOver(e) {
     e.dataTransfer.dropEffect = 'move';
 }
 
+// --- Toggle active structural presentation state properties cleanly ---
 function handleDragEnter(e) {
     e.preventDefault();
     const zone = e.currentTarget;
