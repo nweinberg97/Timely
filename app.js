@@ -40,12 +40,12 @@ function loadDataFromStorage() {
 function initDefaultContainers() {
     if (state.containers.length === 0) {
         state.containers = [
-            { id: 'g-1', title: 'Health & Vitality', type: 'goal' },
-            { id: 'g-2', title: 'Deep Work Philosophy', type: 'goal' },
-            { id: 'g-3', title: 'Financial Independence', type: 'goal' },
-            { id: 'g-4', title: 'Mindfulness Practice', type: 'goal' },
-            { id: 'p-1', title: 'Forth Hub Buildout', type: 'project' },
-            { id: 'p-2', title: 'The Call of Guardians MS', type: 'project' }
+            { id: 'g-1', title: 'Run a 10K', type: 'goal' },
+            { id: 'g-2', title: 'Financial Independence', type: 'goal' },
+            { id: 'g-3', title: 'Meal Prep System', type: 'goal' },
+            { id: 'g-4', title: 'New Social Circles', type: 'goal' },
+            { id: 'p-1', title: 'Forth', type: 'project' },
+            { id: 'p-2', title: 'Brainly', type: 'project' }
         ];
         saveDataToStorage();
     }
@@ -108,7 +108,7 @@ function setupPlanningNavListeners() {
     if (!planNav) return;
     
     planNav.innerHTML = `
-        <button class="sub-nav-btn ${state.currentPlanningView === 'goals' ? 'active' : ''}" data-pview="goals">Strategic Goals</button>
+        <button class="sub-nav-btn ${state.currentPlanningView === 'goals' ? 'active' : ''}" data-pview="goals">Current Goals</button>
         <button class="sub-nav-btn ${state.currentPlanningView === 'projects' ? 'active' : ''}" data-pview="projects">Active Projects</button>
     `;
 
@@ -210,7 +210,7 @@ function renderApp() {
 
 // --- Specific View Templates Execution ---
 function renderDailyView(target) {
-    let html = `<div class="pane-header"><h2>Daily Schedule Grid</h2><button class="add-card-btn" onclick="createNewCardFromUI('Daily Card', '08:00')">+ Add Time Block</button></div>`;
+    let html = `<div class="pane-header"><h2>Daily Schedule</h2><button class="add-card-btn" onclick="createNewCardFromUI('Daily Card', '08:00')">+ Add Time Block</button></div>`;
     html += `<div class="daily-layout">`;
     const hours = ["06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
     
@@ -231,7 +231,7 @@ function renderDailyView(target) {
 function renderWeeklyView(target) {
     let html = `
         <div class="pane-header">
-            <h2>Weekly Routine Horizon</h2>
+            <h2>Weekly Schedule</h2>
             <button class="add-card-btn" onclick="createNewCardFromUI('Weekly Card', 'Monday-Morning')">+ Add Routine</button>
         </div>`;
     html += `<div class="weekly-layout">`;
@@ -260,7 +260,7 @@ function renderWeeklyView(target) {
 function renderMonthlyView(target) {
     let html = `
         <div class="pane-header">
-            <h2>Monthly Calendar Matrix</h2>
+            <h2>Monthly Calendar</h2>
             <button class="add-card-btn" onclick="createNewCardFromUI('Monthly Card', 'day-1')">+ Add Event</button>
         </div>`;
     html += `<div class="monthly-layout">`;
@@ -283,10 +283,10 @@ function renderMonthlyView(target) {
 
 function renderRemindersView(target) {
     let html = `
-        <div class="pane-header"><h2>Reminders Desk</h2></div>
+        <div class="pane-header"><h2>Reminders Board</h2></div>
         <div class="reminders-layout">
             <div class="flex-board-column">
-                <div class="pane-header"><strong>Action Desk</strong><button class="add-card-btn" onclick="createNewCardFromUI('Reminder Card', 'reminders-main')">+ Add</button></div>
+                <div class="pane-header"><strong>Things I Need to Remember</strong><button class="add-card-btn" onclick="createNewCardFromUI('Reminder Card', 'reminders-main')">+ Add</button></div>
                 <div class="drop-zone" data-zone-type="reminders" data-zone-id="reminders-main">
                     ${renderCardsForZone('reminders', 'reminders-main')}
                 </div>
@@ -306,7 +306,7 @@ function renderPlanningModeView(target) {
 
     let html = `
         <div class="pane-header">
-            <h2>${isGoals ? 'Strategic Vision Architecture' : 'Active Execution Blueprints'}</h2>
+            <h2>${isGoals ? 'Things I'm Working Towards' : 'Things I'm Building'}</h2>
             <div class="carousel-fast-add-panel">
                 <input type="text" id="new-container-title" placeholder="New ${isGoals ? 'Goal Track' : 'Project Board'}..." />
                 <button class="action-btn primary" onclick="addNewPlanningContainer()">+ Build Container</button>
