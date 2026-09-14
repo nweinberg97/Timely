@@ -2,7 +2,9 @@
 
 > 🚧 **Work in Progress**
 >
-> Timely is an actively developed personal project. The core concept and functionality are in place, but the application is still being refined and is **not yet considered a finished or production-ready product**. Features, design, and functionality may change as development continues.
+> Timely is an actively developed component of LifeOS, a larger local-first productivity system currently under development. The core planning and scheduling concepts are in place, but the application is still being refined and is not yet considered a finished or production-ready product.
+>
+> Timely currently serves as the scheduling and higher-level planning prototype for the broader LifeOS system. Its features, design, architecture, and integration points may change as LifeOS continues to evolve.
 
 Timely is a clean, minimalist, local-first web application designed to help balance rigorous execution tracking with intentional high-level systemic thinking. Built using vanilla web standards, it brings time-blocking and open-ended planning into a single workflow.
 
