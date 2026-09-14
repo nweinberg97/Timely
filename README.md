@@ -1,25 +1,51 @@
-# Timely
-Local-First Life Planner
 # Timely — Local-First Life Planner
 
-Timely is a clean, minimalist, local-first web application designed to help you balance rigorous execution tracking with intentional high-level systemic thinking. Built strictly using vanilla web standards, it integrates time-blocking scheduling systems with open-ended planning systems into a friction-free workflow.
+> 🚧 **Work in Progress**
+>
+> Timely is an actively developed personal project. The core concept and functionality are in place, but the application is still being refined and is **not yet considered a finished or production-ready product**. Features, design, and functionality may change as development continues.
 
-## 🚀 Core Features Overview
+Timely is a clean, minimalist, local-first web application designed to help balance rigorous execution tracking with intentional high-level systemic thinking. Built using vanilla web standards, it brings time-blocking and open-ended planning into a single workflow.
 
-- **Dual-Mode System Mechanics:**
-  - **Schedule Mode (Execution System):** Work through structured hourly grids in the **Daily View**, coordinate high-level timeline cadences using 5 fixed day-parts (Morning, Noon, Afternoon, Evening, Night) in the **Weekly View**, view a complete monthly horizon grid in the **Monthly View**, or manage flexible floating cards inside the **Reminders Board**.
-  - **Planning Mode (Thinking System):** Designed for high-level structure outside of rigid dates. Break your objectives down into strategic **Goals** and active implementation **Projects**.
-- **Universal Transformation Rule (Inbox Concept):** The right-hand sidebar acts as your ultimate mental clearinghouse. Dragging *any* card from *any* context into the **Universal Board** clears its contextual baggage, permanently turning it into an open-ended `Universal Card` asset.
-- **Local-First Architecture:** Zero remote APIs. Zero external service outages. Your entire application runtime runs securely directly out of `localStorage` with silent instant auto-save capabilities on every card modification or reposition.
-- **iCal Calendar Engine Synchronization:** Pack your operational tracks with an explicit internal native `.ics` generator down-pipe to synchronize all Active Schedule items seamlessly into external apps.
-- **Recurrence Engine Configuration:** Set persistent daily, weekly, or monthly duplication recurrence rules on items with visual badge feedback identifiers.
+## 🚀 Core Features
+
+* **Dual-Mode System**
+
+  * **Schedule Mode (Execution):** Work through structured hourly grids in the **Daily View**, coordinate high-level timeline cadences using five fixed day-parts (Morning, Noon, Afternoon, Evening, Night) in the **Weekly View**, view a complete monthly horizon in the **Monthly View**, or manage flexible floating cards inside the **Reminders Board**.
+  * **Planning Mode (Thinking):** Create higher-level **Goals** and active **Projects** without tying everything to a rigid date or schedule.
+
+* **Universal Transformation Rule (Inbox Concept):** The right-hand sidebar acts as a mental clearinghouse. Dragging a card from any context into the **Universal Board** removes its contextual constraints and turns it into an open-ended `Universal Card`.
+
+* **Local-First Architecture:** Timely currently uses `localStorage` for local data persistence, with automatic saving when cards are modified or repositioned. No external APIs or services are required for the core application.
+
+* **iCal Calendar Synchronization:** Timely includes a native `.ics` generator for exporting Active Schedule items to external calendar applications.
+
+* **Recurrence Engine:** Items can be configured with daily, weekly, or monthly recurrence rules, with visual indicators showing their recurrence status.
 
 ## 🛠️ Design Philosophy
 
-Timely is built around structural simplicity over abstract engineering overhead. The mouse, trackpad, or screen touch drag-and-drop interaction acts as the primary layout translation vehicle across all containers, boards, and the functional drop-to-delete trash zone.
+Timely is built around structural simplicity over unnecessary engineering complexity. Drag-and-drop interaction acts as the primary way to organize information across schedules, boards, and containers.
 
-## 💻 Tech Stack Specification
+The broader design goal is to make planning feel **spatial, constrained, and tangible** rather than turning everything into another list of tasks.
 
-- **Structure:** HTML5 Canvas Validation Blueprint.
-- **Presentation:** CSS3 Customized Variables Interface.
-- **Execution Engine:** Vanilla EcmaScript ECMAScript Standard (No Build tools, No Frameworks, No NPM Packages Required).
+## 💻 Tech Stack
+
+* **Structure:** HTML5
+* **Presentation:** CSS3
+* **Execution:** Vanilla JavaScript (ECMAScript)
+* **Persistence:** Browser `localStorage`
+* **Dependencies:** No frameworks, build tools, or NPM packages required
+
+## 🚧 Development Status
+
+Timely is currently a **work in progress**.
+
+The application is functional and the core planning system has been implemented, but development is ongoing. Current and future work may include:
+
+* Refining the UI and interaction patterns
+* Improving responsiveness and usability
+* Testing edge cases and data persistence
+* Refining existing scheduling and recurrence behavior
+* Adding or modifying features as the underlying planning system evolves
+* General bug fixing and polish
+
+**Expect changes as the project develops.**
